@@ -47,28 +47,30 @@ namespace FreeMote
         public uint OffsetChunkData { get; set; }
 
         /// <summary>
-        /// Entry Counts (uint32)
+        /// Entry Offset
         /// </summary>
-        public uint EntryCounts { get; set; }
+        public uint OffsetEntries { get; set; }
 
         /// <summary>
-        /// Adler32 Checksum for header
-        /// <para>New in PSBv3, but not always checked in v3. Sadly, it's always checked from v4, so we have to handle it.</para>
+        /// [New in v3] Adler32 Checksum for header
+        /// <para>Not always checked in v3. Sadly, it's always checked from v4, so we have to handle it.</para>
         /// </summary>
         public uint Checksum { get; set; }
 
         /// <summary>
-        /// New in v4
+        /// [New in v4] Usually an empty array (3 bytes)
+        /// <para><see cref="OffsetResourceOffsets"/> - 6</para>
         /// </summary>
         public uint OffsetUnknown1 { get; set; }
         /// <summary>
-        /// New in v4
+        /// [New in v4] Usually an empty array (3 bytes)
+        /// <para><see cref="OffsetResourceOffsets"/> - 3</para>
         /// </summary>
         public uint OffsetUnknown2 { get; set; }
         /// <summary>
-        /// New in v4
+        /// [New in v4] Usually same as <see cref="OffsetChunkOffsets"/>
         /// </summary>
-        public uint OffsetUnknown3 { get; set; }
+        public uint OffsetResourceOffsets { get; set; }
 
         public static PsbHeader Load(BinaryReader br)
         {
@@ -93,7 +95,7 @@ namespace FreeMote
                 header.OffsetChunkOffsets = br.ReadUInt32();
                 header.OffsetChunkLengths = br.ReadUInt32();
                 header.OffsetChunkData = br.ReadUInt32();
-                header.EntryCounts = br.ReadUInt32();
+                header.OffsetEntries = br.ReadUInt32();
                 if (header.Version > 2)
                 {
                     header.Checksum = br.ReadUInt32();
@@ -102,9 +104,13 @@ namespace FreeMote
                 {
                     header.OffsetUnknown1 = br.ReadUInt32();
                     header.OffsetUnknown2 = br.ReadUInt32();
-                    header.OffsetUnknown3 = br.ReadUInt32();
+                    header.OffsetResourceOffsets = br.ReadUInt32();
                 }
             }
+            //else
+            //{
+            //    throw new NotSupportedException("Header seems encrypted.");
+            //}
             return header;
         }
         
@@ -125,7 +131,7 @@ namespace FreeMote
             header.OffsetChunkOffsets = context.ReadUInt32(br);
             header.OffsetChunkLengths = context.ReadUInt32(br);
             header.OffsetChunkData = context.ReadUInt32(br);
-            header.EntryCounts = context.ReadUInt32(br);
+            header.OffsetEntries = context.ReadUInt32(br);
             if (header.Version > 2)
             {
                 header.Checksum = context.ReadUInt32(br);
@@ -134,7 +140,7 @@ namespace FreeMote
             {
                 header.OffsetUnknown1 = context.ReadUInt32(br);
                 header.OffsetUnknown2 = context.ReadUInt32(br);
-                header.OffsetUnknown3 = context.ReadUInt32(br);
+                header.OffsetResourceOffsets = context.ReadUInt32(br);
             }
             return header;
         }
@@ -152,7 +158,7 @@ namespace FreeMote
                         .Concat(BitConverter.GetBytes(OffsetChunkOffsets))
                         .Concat(BitConverter.GetBytes(OffsetChunkLengths))
                         .Concat(BitConverter.GetBytes(OffsetChunkData))
-                        .Concat(BitConverter.GetBytes(EntryCounts))
+                        .Concat(BitConverter.GetBytes(OffsetEntries))
                         .ToArray();
             Adler32 adler32 = new Adler32();
             adler32.Update(checkBuffer);
@@ -163,7 +169,7 @@ namespace FreeMote
             }
             checkBuffer = BitConverter.GetBytes(OffsetUnknown1)
                                            .Concat(BitConverter.GetBytes(OffsetUnknown2))
-                                           .Concat(BitConverter.GetBytes(OffsetUnknown3))
+                                           .Concat(BitConverter.GetBytes(OffsetResourceOffsets))
                                            .ToArray();
             adler32.Update(checkBuffer);
             Checksum = (uint)adler32.Checksum;
