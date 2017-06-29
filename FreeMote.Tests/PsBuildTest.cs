@@ -2,19 +2,19 @@
 using System.Text;
 using System.Collections.Generic;
 using System.IO;
+using FreeMote.PsBuild;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using FreeMote.Psb;
-
+using Newtonsoft.Json;
 
 namespace FreeMote.Tests
 {
     /// <summary>
-    /// PsbTest 的摘要说明
+    /// PsBuildTest 的摘要说明
     /// </summary>
     [TestClass]
-    public class PsbTest
+    public class PsBuildTest
     {
-        public PsbTest()
+        public PsBuildTest()
         {
             //
             //TODO:  在此处添加构造函数逻辑
@@ -29,8 +29,14 @@ namespace FreeMote.Tests
         ///</summary>
         public TestContext TestContext
         {
-            get => testContextInstance;
-            set => testContextInstance = value;
+            get
+            {
+                return testContextInstance;
+            }
+            set
+            {
+                testContextInstance = value;
+            }
         }
 
         #region 附加测试特性
@@ -56,48 +62,41 @@ namespace FreeMote.Tests
         #endregion
 
         [TestMethod]
-        public void TestPsbLoad()
+        public void TestDecompile()
         {
             var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
             var paths = Directory.GetFiles(resPath, "*pure.psb");
-            using (FileStream fs = new FileStream(paths[0], FileMode.Open))
-            {
-                PSB psb = new PSB(fs);
-            }
+            var target = paths[0];
+            var json = PsbDecompiler.Decompile(target);
+            File.WriteAllText(target + ".json", json);
         }
 
         [TestMethod]
-        public void TestPsbLoadV4()
+        public void TestCompile()
         {
-            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
-            var paths = Directory.GetFiles(resPath, "*v4.psb");
-            using (FileStream fs = new FileStream(paths[0], FileMode.Open))
-            {
-                PSB psb = new PSB(fs);
-            }
+
         }
 
         [TestMethod]
-        public void TestPsbLoadKrkr()
+        public void TestJsonNumbers()
         {
-            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
-            var paths = Directory.GetFiles(resPath, "澄怜a_裸.psb-pure.psb");
-            using (FileStream fs = new FileStream(paths[0], FileMode.Open))
+            List<float> floats = new List<float> { -0.00000001f, 1/3f, -0.000027f, 19.200079f, (float)Math.PI, float.MinValue};
+            string json = JsonConvert.SerializeObject(floats);
+            Console.WriteLine(json);
+            var result = JsonConvert.DeserializeObject<List<float>>(json);
+            for (int i = 0; i < result.Count; i++)
             {
-                PSB psb = new PSB(fs);
+                Assert.AreEqual(floats[i], result[i]);
             }
-        }
 
-        [TestMethod]
-        public void TestRlUncompress()
-        {
-            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
-
-            var path = Path.Combine(resPath, "澄怜a_裸.psb-pure", "84.bin"); //輪郭00
-            RlCompress.ConvertToImageFile(File.ReadAllBytes(path), path + ".png", 570, 426);
-            path = Path.Combine(resPath, "澄怜a_裸.psb-pure", "89.bin"); //胸00
-            RlCompress.ConvertToImageFile(File.ReadAllBytes(path), path + ".png", 395, 411);
-
+            List<double> doubles  = new List<double> { double.MinValue, double.MaxValue, 123456789.0, -0.00000001, 0.03, 0.4 };
+            json = JsonConvert.SerializeObject(doubles);
+            Console.WriteLine(json);
+            var result2 = JsonConvert.DeserializeObject<List<double>>(json);
+            for (int i = 0; i < result2.Count; i++)
+            {
+                Assert.AreEqual(doubles[i], result2[i]);
+            }
         }
     }
 }
