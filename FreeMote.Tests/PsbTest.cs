@@ -95,24 +95,30 @@ namespace FreeMote.Tests
             var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
 
             var path = Path.Combine(resPath, "澄怜a_裸.psb-pure", "84.bin"); //輪郭00
-            RlCompress.ConvertToImageFile(File.ReadAllBytes(path), path + ".png", 570, 426);
+            RlCompress.UncompressToImageFile(File.ReadAllBytes(path), path + ".png", 570, 426);
             path = Path.Combine(resPath, "澄怜a_裸.psb-pure", "89.bin"); //胸00
-            RlCompress.ConvertToImageFile(File.ReadAllBytes(path), path + ".png", 395, 411);
+            RlCompress.UncompressToImageFile(File.ReadAllBytes(path), path + ".png", 395, 411);
         }
 
         [TestMethod]
         public void TestRlCompress()
         {
             var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
-
-            var path = Path.Combine(resPath, "澄怜a_裸.psb-pure", "84.bin"); //輪郭00
-            var bytes = RlCompress.CompressImageFile(path + ".png");
+            string path;
+            byte[] bytes;
+            path = Path.Combine(resPath, "澄怜a_裸.psb-pure", "84.bin"); //輪郭00
+            RlCompress.UncompressToImageFile(File.ReadAllBytes(path), path + ".png", 570, 426);
+            bytes = RlCompress.CompressImageFile(path + ".png");
             File.WriteAllBytes(path + ".rl", bytes);
+            RlCompress.UncompressToImageFile(File.ReadAllBytes(path + ".rl"), path + ".rl.png", 570, 426);
+            Assert.IsTrue(bytes.SequenceEqual(File.ReadAllBytes(path)));
 
-            RlCompress.ConvertToImageFile(File.ReadAllBytes(path + ".rl"), path + ".rl.png", 570, 426);
-            //RlCompress.ConvertToImageFile(File.ReadAllBytes(path), path + ".png", 570, 426);
-            //path = Path.Combine(resPath, "澄怜a_裸.psb-pure", "89.bin"); //胸00
-            //RlCompress.ConvertToImageFile(File.ReadAllBytes(path), path + ".png", 395, 411);
+            path = Path.Combine(resPath, "澄怜a_裸.psb-pure", "89.bin"); //胸00
+            RlCompress.UncompressToImageFile(File.ReadAllBytes(path), path + ".png", 395, 411);
+            bytes = RlCompress.CompressImageFile(path + ".png");
+            File.WriteAllBytes(path + ".rl", bytes);
+            RlCompress.UncompressToImageFile(File.ReadAllBytes(path + ".rl"), path + ".rl.png", 395, 411);
+            Assert.IsTrue(bytes.SequenceEqual(File.ReadAllBytes(path)));
         }
     }
 }

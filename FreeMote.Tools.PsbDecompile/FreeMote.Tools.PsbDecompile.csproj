@@ -8,7 +8,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>FreeMote.Tools.PsbDecompile</RootNamespace>
     <AssemblyName>PsbDecompile</AssemblyName>
-    <TargetFrameworkVersion>v4.7</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFrameworkProfile />
@@ -53,6 +53,10 @@
     <ProjectReference Include="..\FreeMote.PsBuild\FreeMote.PsBuild.csproj">
       <Project>{717a63de-e599-4134-92ab-40a17c326da3}</Project>
       <Name>FreeMote.PsBuild</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\FreeMote\FreeMote.csproj">
+      <Project>{D43CA425-6476-4AE3-A3D8-BBCAC0F0383C}</Project>
+      <Name>FreeMote</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
