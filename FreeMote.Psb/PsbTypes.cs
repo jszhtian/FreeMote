@@ -9,17 +9,6 @@ using System.Threading.Tasks;
 
 namespace FreeMote.Psb
 {
-    /// <summary>
-    /// PSB Platform
-    /// </summary>
-    public enum PsbSpec : byte
-    {
-        common,
-        krkr,
-        win,
-        other
-    }
-
     public enum PsbType : byte
     {
 
@@ -82,14 +71,35 @@ namespace FreeMote.Psb
     };
 
     /// <summary>
-    /// Collection
+    /// Contained by a <see cref="IPsbCollection"/>
     /// </summary>
-    public interface IPsbCollection
+    public interface IPsbChild
     {
         /// <summary>
-        /// <see cref="IPsbCollection"/> which contains this
+        /// <see cref="IPsbCollection"/> which contain this
         /// </summary>
         IPsbCollection Parent { get; set; }
+    }
+
+
+    /// <summary>
+    /// Contained by more than one <see cref="IPsbCollection"/>
+    /// </summary>
+    public interface IPsbSingleton
+    {
+        /// <summary>
+        /// <see cref="IPsbCollection"/>s which contain this
+        /// </summary>
+        List<IPsbCollection> Parents { get; set; }
+    }
+
+    /// <inheritdoc />
+    /// <summary>
+    /// Collection
+    /// </summary>
+    public interface IPsbCollection : IPsbChild
+    {
+        IPsbCollection Parent { get; }
         IPsbValue this[int i]
         {
             get;
@@ -405,6 +415,7 @@ namespace FreeMote.Psb
                                 throw new ArgumentOutOfRangeException("Not a valid Integer");
                         }
                     case PsbNumberType.Float:
+                        //TODO: Float0 or not
                         if (Math.Abs(FloatValue) < float.Epsilon) //should we just use 0?
                         {
                             return PsbType.Float0;
@@ -446,6 +457,29 @@ namespace FreeMote.Psb
                 default:
                     bw.Write(Data);
                     break;
+            }
+        }
+
+        public byte[] ToBytes()
+        {
+            switch (NumberType)
+            {
+                case PsbNumberType.Int:
+                    if (Type != PsbType.NumberN0)
+                    {
+                        return IntValue.ZipNumberBytes();
+                    }
+                    return new byte[0];
+                case PsbNumberType.Float:
+                    if (Type != PsbType.Float0)
+                    {
+                        return BitConverter.GetBytes(FloatValue);
+                    }
+                    return new byte[0];
+                case PsbNumberType.Double:
+                    return BitConverter.GetBytes(DoubleValue);
+                default:
+                    return Data;
             }
         }
     }
@@ -523,8 +557,12 @@ namespace FreeMote.Psb
             return $"Array[{Value.Count}]";
         }
 
-        private int GetEntryLength()
+        private byte GetEntryLength()
         {
+            if (Value == null || Value.Count <= 0)
+            {
+                return 0;
+            }
             var maxSize = Value.Max(u => u.GetSize());
             if (maxSize > 8)
             {
@@ -537,8 +575,8 @@ namespace FreeMote.Psb
         public void WriteTo(BinaryWriter bw)
         {
             bw.Write((byte)Type); //Type
-            bw.Write(Value.Count.ZipNumberBytes()); //Count
-            bw.Write(GetEntryLength()); //EntryLength
+            bw.Write(Value.Count.ZipNumberBytes(Value.Count.GetSize())); //Count
+            bw.Write((byte)(GetEntryLength() + (byte)PsbType.NumberN8)); //FIXED: EntryLength is added by 0xC
             foreach (var u in Value)
             {
                 bw.Write(u.ZipNumberBytes(EntryLength));
@@ -639,7 +677,12 @@ namespace FreeMote.Psb
         public void WriteTo(BinaryWriter bw)
         {
             bw.Write((byte)Type);
-            new PsbNumber(Index ?? 0).WriteTo(bw);
+            if (Index == null)
+            {
+                throw new ArgumentNullException("Index", "Index can not be null when writing");
+            }
+            bw.Write(Index.Value.ZipNumberBytes()); //FIXED:
+            //new PsbNumber(Index ?? 0u).WriteTo(bw); //Wrong because it writes number type
         }
     }
 
@@ -685,6 +728,7 @@ namespace FreeMote.Psb
 
         public IPsbCollection Parent { get; set; } = null;
 
+
         public IPsbValue this[int index]
         {
             get => index < Value.Count ? Value[index] : null;
@@ -702,8 +746,8 @@ namespace FreeMote.Psb
     }
 
     [Serializable]
-    [DebuggerDisplay("Resource[{Data?.Length}](#{Index})")]
-    public class PsbResource : IPsbValue, IPsbIndexed, IPsbWrite
+    [DebuggerDisplay("Resource[{Data?.Length}](#{" + nameof(Index) + "})")]
+    public class PsbResource : IPsbValue, IPsbIndexed, IPsbWrite, IPsbSingleton
     {
         internal PsbResource(int n, BinaryReader br)
         {
@@ -736,7 +780,7 @@ namespace FreeMote.Psb
                     case 4:
                         return PsbType.ResourceN4;
                     default:
-                        throw new ArgumentOutOfRangeException("size", "Not a valid resource");
+                        throw new ArgumentOutOfRangeException("Index", "Not a valid resource");
                 }
             }
         }
@@ -749,8 +793,14 @@ namespace FreeMote.Psb
         public void WriteTo(BinaryWriter bw)
         {
             bw.Write((byte)Type);
-            new PsbNumber(Index ?? 0).WriteTo(bw);
+            if (Index == null)
+            {
+                throw new ArgumentNullException("Index", "Index can not be null when writing");
+            }
+            bw.Write(Index.Value.ZipNumberBytes()); //FIXED:
         }
+
+        public List<IPsbCollection> Parents { get; set; } = new List<IPsbCollection>();
     }
 
 }

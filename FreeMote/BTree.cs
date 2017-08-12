@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace FreeMote
 {
@@ -16,6 +16,7 @@ namespace FreeMote
         /// <summary>
         /// Node for B Tree
         /// </summary>
+        [DebuggerDisplay("{" + nameof(Char) + "}")]
         internal class BNode
         {
             public int Id = -1;
@@ -64,7 +65,7 @@ namespace FreeMote
 
         internal List<string> Values = new List<string>();
 
-        public Dictionary<string, uint> Results = new Dictionary<string, uint>();
+        public Dictionary<string, uint> Results { get; } = new Dictionary<string, uint>();
 
         public BTree()
         { }
@@ -85,9 +86,9 @@ namespace FreeMote
         internal void InsertTree(string value)
         {
             BNode prev = Root;
-            foreach (var c in value)
+            foreach (var c in Encoding.UTF8.GetBytes(value)) //WTF! We have to take unicode chars apart
             {
-                prev = GetNode(prev, c);
+                prev = GetNode(prev, (char)c);
             }
             GetNode(prev, (char)0, true);
         }
@@ -263,6 +264,34 @@ namespace FreeMote
             _offsets.Add(1);
             MakeBranch(Root);
             MakeLink();
+        }
+
+        /// <summary>
+        /// Load a B Tree
+        /// </summary>
+        public static List<string> Load(List<uint> names, List<uint> trees, List<uint> offsets)
+        {
+            var results = new List<string>(names.Count);
+            for (int i = 0; i < names.Count; i++)
+            {
+                var list = new List<byte>();
+                var index = names[i];
+                var chr = trees[(int)index];
+                while (chr != 0)
+                {
+                    var code = trees[(int)chr];
+                    var d = offsets[(int)code];
+                    var realChr = chr - d;
+                    chr = code;
+                    //REF: https://stackoverflow.com/questions/18587267/does-list-insert-have-any-performance-penalty
+                    list.Add((byte)realChr);
+                }
+                //Debug.WriteLine("");
+                list.Reverse();
+                var str = Encoding.UTF8.GetString(list.ToArray()); //That's why we don't use StringBuilder here.
+                results.Add(str);
+            }
+            return results;
         }
 
     }

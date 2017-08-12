@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using FreeMote.Psb;
@@ -15,12 +16,13 @@ namespace FreeMote.PsBuild
         /// Get all resources with necessary info
         /// </summary>
         /// <param name="psb"></param>
+        /// <param name="deDuplication">if true, We focus on Resource itself </param>
         /// <returns></returns>
-        public static List<ResourceMetadata> CollectResources(this PSB psb)
+        public static List<ResourceMetadata> CollectResources(this PSB psb, bool deDuplication = true)
         {
-            List<ResourceMetadata> resourceList = new List<ResourceMetadata>(psb.Resources.Count);
+            List<ResourceMetadata> resourceList = psb.Resources == null ? new List<ResourceMetadata>() : new List<ResourceMetadata>(psb.Resources.Count);
 
-            FindResources(resourceList, psb.Objects[SourceKey]);
+            FindResources(resourceList, psb.Objects[SourceKey], deDuplication);
 
             resourceList.ForEach(r => r.Spec = psb.Platform);
             resourceList.Sort((md1, md2) => (int)(md1.Index - md2.Index));
@@ -28,24 +30,28 @@ namespace FreeMote.PsBuild
             return resourceList;
         }
 
-        private static void FindResources(List<ResourceMetadata> list, IPsbValue obj)
+        private static void FindResources(List<ResourceMetadata> list, IPsbValue obj, bool deDuplication = true)
         {
             switch (obj)
             {
                 case PsbCollection c:
-                    c.Value.ForEach(o => FindResources(list, o));
+                    c.Value.ForEach(o => FindResources(list, o, deDuplication));
                     break;
                 case PsbDictionary d:
                     if (d[ResourceKey] is PsbResource r)
                     {
-                        if (r.Index == null || list.FirstOrDefault(md => md.Index == r.Index.Value) == null)
+                        if (!deDuplication)
+                        {
+                            list.Add(GenerateResourceMetadata(d, r));
+                        }
+                        else if (r.Index == null || list.FirstOrDefault(md => md.Index == r.Index.Value) == null)
                         {
                             list.Add(GenerateResourceMetadata(d, r));
                         }
                     }
                     foreach (var o in d.Value.Values)
                     {
-                        FindResources(list, o);
+                        FindResources(list, o, deDuplication);
                     }
                     break;
             }
@@ -62,10 +68,10 @@ namespace FreeMote.PsBuild
             {
                 is2D = true;
                 clip = RectangleF.FromLTRB(
-                    left: (float?)(clipDic["left"] as PsbNumber)?.Value ?? 0,
-                    top: (float?)(clipDic["top"] as PsbNumber)?.Value ?? 0,
-                    right: (float?)(clipDic["right"] as PsbNumber)?.Value ?? 1,
-                    bottom: (float?)(clipDic["bottom"] as PsbNumber)?.Value ?? 1
+                    left: clipDic["left"] == null ? 0f : (float)(PsbNumber)clipDic["left"],
+                    top: clipDic["top"] == null ? 0f : (float)(PsbNumber)clipDic["top"],
+                    right: clipDic["right"] == null ? 1f : (float)(PsbNumber)clipDic["right"],
+                    bottom: clipDic["bottom"] == null ? 1f : (float)(PsbNumber)clipDic["bottom"]
                 );
             }
             var compress = PsbCompressType.None;
@@ -104,6 +110,17 @@ namespace FreeMote.PsBuild
             {
                 type = st.Value;
             }
+            int top = 0, left = 0;
+            if (d["top"] is PsbNumber nt)
+            {
+                is2D = true;
+                top = (int)nt;
+            }
+            if (d["left"] is PsbNumber nl)
+            {
+                is2D = true;
+                left = (int)nl;
+            }
             var md = new ResourceMetadata()
             {
                 Index = r.Index ?? int.MaxValue,
@@ -114,10 +131,12 @@ namespace FreeMote.PsBuild
                 Is2D = is2D,
                 OriginX = originX,
                 OriginY = originY,
+                Top = top,
+                Left = left,
                 Width = width,
                 Height = height,
                 Type = type,
-                Data = r.Data,
+                Resource = r,
             };
             return md;
         }
@@ -127,7 +146,7 @@ namespace FreeMote.PsBuild
         /// </summary>
         /// <param name="c"></param>
         /// <returns></returns>
-        private static string GetPartName(this IPsbCollection c)
+        private static string GetPartName(this IPsbChild c)
         {
             while (c != null)
             {
@@ -145,11 +164,75 @@ namespace FreeMote.PsBuild
         /// </summary>
         /// <param name="c"></param>
         /// <returns></returns>
-        public static string GetName(this IPsbCollection c)
+        public static string GetName(this IPsbChild c)
         {
             var source = c?.Parent as PsbDictionary;
             var result = source?.Value.FirstOrDefault(pair => Equals(pair.Value, c));
             return result?.Value == null ? null : result.Value.Key;
+        }
+
+        /// <summary>
+        /// Get Name
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public static string GetName(this IPsbSingleton c, PsbDictionary parent = null)
+        {
+            var source = parent ?? c?.Parents.FirstOrDefault(p => p is PsbDictionary) as PsbDictionary;
+            var result = source?.Value.FirstOrDefault(pair => Equals(pair.Value, c));
+            return result?.Value == null ? null : result.Value.Key;
+        }
+
+        /// <summary>
+        /// If this spec uses RL
+        /// </summary>
+        /// <param name="spec"></param>
+        /// <returns></returns>
+        public static PsbCompressType CompressType(this PsbSpec spec)
+        {
+            switch (spec)
+            {
+                case PsbSpec.krkr:
+                    return PsbCompressType.RL;
+                case PsbSpec.common:
+                case PsbSpec.win:
+                case PsbSpec.other:
+                default:
+                    return PsbCompressType.None;
+            }
+        }
+
+        /// <summary>
+        /// Try to switch Spec
+        /// </summary>
+        /// <param name="psb"></param>
+        /// <param name="targetSpec"></param>
+        public static void SwitchSpec(this PSB psb, PsbSpec targetSpec)
+        {
+            if (targetSpec == PsbSpec.other)
+            {
+                return;
+            }
+            var original = psb.Platform;
+            psb.Platform = targetSpec;
+            var resources = psb.CollectResources(false);
+
+            if (original == PsbSpec.krkr && (targetSpec == PsbSpec.win || targetSpec == PsbSpec.common))
+            {
+                foreach (var resMd in resources)
+                {
+                    foreach (var parent in resMd.Resource.Parents)
+                    {
+                        var dic = parent as PsbDictionary;
+                        dic?.Value.Remove("compress");
+                    }
+                }
+            }
+
+            if ((original == PsbSpec.win || original == PsbSpec.common) && targetSpec == PsbSpec.krkr)
+            {
+                //TODO:
+            }
         }
     }
 }
