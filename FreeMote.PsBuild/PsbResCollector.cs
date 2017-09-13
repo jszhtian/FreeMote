@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using FreeMote.Psb;
@@ -35,7 +36,7 @@ namespace FreeMote.PsBuild
             switch (obj)
             {
                 case PsbCollection c:
-                    c.Value.ForEach(o => FindResources(list, o, deDuplication));
+                    c.ForEach(o => FindResources(list, o, deDuplication));
                     break;
                 case PsbDictionary d:
                     if (d[ResourceKey] is PsbResource r)
@@ -49,7 +50,7 @@ namespace FreeMote.PsBuild
                             list.Add(GenerateResourceMetadata(d, r));
                         }
                     }
-                    foreach (var o in d.Value.Values)
+                    foreach (var o in d.Values)
                     {
                         FindResources(list, o, deDuplication);
                     }
@@ -64,7 +65,7 @@ namespace FreeMote.PsBuild
             var name = d.GetName();
             RectangleF clip = RectangleF.Empty;
 
-            if (d["clip"] is PsbDictionary clipDic && clipDic.Value.Count > 0)
+            if (d["clip"] is PsbDictionary clipDic && clipDic.Count > 0)
             {
                 is2D = true;
                 clip = RectangleF.FromLTRB(
@@ -167,7 +168,7 @@ namespace FreeMote.PsBuild
         public static string GetName(this IPsbChild c)
         {
             var source = c?.Parent as PsbDictionary;
-            var result = source?.Value.FirstOrDefault(pair => Equals(pair.Value, c));
+            var result = source?.FirstOrDefault(pair => Equals(pair.Value, c));
             return result?.Value == null ? null : result.Value.Key;
         }
 
@@ -179,7 +180,7 @@ namespace FreeMote.PsBuild
         public static string GetName(this IPsbSingleton c, PsbDictionary parent = null)
         {
             var source = parent ?? c?.Parents.FirstOrDefault(p => p is PsbDictionary) as PsbDictionary;
-            var result = source?.Value.FirstOrDefault(pair => Equals(pair.Value, c));
+            var result = source?.FirstOrDefault(pair => Equals(pair.Value, c));
             return result?.Value == null ? null : result.Value.Key;
         }
 
@@ -207,7 +208,7 @@ namespace FreeMote.PsBuild
         /// </summary>
         /// <param name="psb"></param>
         /// <param name="targetSpec"></param>
-        public static void SwitchSpec(this PSB psb, PsbSpec targetSpec)
+        public static void SwitchSpec(this PSB psb, PsbSpec targetSpec, PsbPixelFormat pixelFormat)
         {
             if (targetSpec == PsbSpec.other)
             {
@@ -217,21 +218,110 @@ namespace FreeMote.PsBuild
             psb.Platform = targetSpec;
             var resources = psb.CollectResources(false);
 
+            //Krkr -> Win
             if (original == PsbSpec.krkr && (targetSpec == PsbSpec.win || targetSpec == PsbSpec.common))
             {
+                //krkr: source/"#custom"/
+                PsbDictionary source = new PsbDictionary(resources.Count);
+                Dictionary<string, string> tranlations = new Dictionary<string, string>();
                 foreach (var resMd in resources)
                 {
-                    foreach (var parent in resMd.Resource.Parents)
-                    {
-                        var dic = parent as PsbDictionary;
-                        dic?.Value.Remove("compress");
-                    }
+                    //This doesn't seems to work
+                    //foreach (var parent in resMd.Resource.Parents)
+                    //{
+                    //    var dic = parent as PsbDictionary;
+                    //    dic?.Value.Remove("compress");
+                    //}
+
+                    var tex = new PsbDictionary(4);
+                    var icon0 = new PsbDictionary(10);
+                    icon0["attr"] = (PsbNumber)0;
+                    icon0["height"] = (PsbNumber)resMd.Height;
+                    icon0["left"] = (PsbNumber)resMd.Left;
+                    icon0["metadata"] = PsbNull.Null;
+                    icon0["originX"] = (PsbNumber)resMd.OriginX;
+                    icon0["originY"] = (PsbNumber)resMd.OriginY;
+                    icon0["top"] = (PsbNumber)resMd.Top;
+                    icon0["width"] = (PsbNumber)resMd.Width;
+
+                    var icon = new PsbDictionary(1);
+                    var iconName = "0"; //We try to make one tex contains only one icon
+                    icon[iconName] = icon0;
+
+                    tex["icon"] = icon;
+                    tex["metadata"] = PsbNull.Null;
+                    
+                    var texture = new PsbDictionary(7);
+                    texture["height"] = (PsbNumber)resMd.Height;
+                    texture["pixel"] = resMd.Resource;
+                    texture["truncated_height"] = (PsbNumber)resMd.Height;
+                    texture["truncated_width"] = (PsbNumber)resMd.Width;
+                    texture["type"] = (PsbString)pixelFormat.ToStringInPsb();
+                    texture["width"] = (PsbNumber)resMd.Width;
+                    //No mipmap
+                    //texture["mipMapLevel"] = (PsbNumber)0;
+                    //texture["mipMap"] = new PsbDictionary(0);
+                    //Win format don't use RL
+                    //texture["compress"] = PsbNull.Null;
+                    tex["texture"] = texture;
+                    tex["type"] = (PsbNumber)0;
+
+                    var texName = $"{resMd.Part}#{resMd.Name}";
+                    source[texName] = tex;
+                    tranlations[$"src/{resMd.Part}/{resMd.Name}"] = texName;
                 }
+
+                psb.Objects["source"] = source;
+                //Translation
+                TranslateToWin(psb.Objects["object"], tranlations); 
             }
 
             if ((original == PsbSpec.win || original == PsbSpec.common) && targetSpec == PsbSpec.krkr)
             {
                 //TODO:
+            }
+
+            void TranslateToWin(IPsbValue obj, Dictionary<string, string> translations)
+            {
+                if (obj is PsbDictionary dic)
+                {
+                    if (dic.ContainsKey("src") && dic["src"] is PsbString src && src.ToString().StartsWith("src/"))
+                    {
+                        if (translations.ContainsKey(src.ToString()))
+                        {
+                            dic["src"] = (PsbString)translations[src.ToString()];
+                        }
+                        else
+                        {
+                            //something may be wrong
+                            Debug.WriteLine($"Can not find translation for {src}");
+                        }
+                    }
+
+                    if (dic.ContainsKey("content") && dic["content"] is PsbDictionary content &&
+                        content.ContainsKey("src") && content["src"] is PsbString src2 &&
+                        src2.ToString().StartsWith("src/") && translations.ContainsKey(src2.ToString()))
+                    {
+                        //Add icon to content
+                        content.Add("icon", (PsbString) "0");
+                    }
+
+                    foreach (IPsbValue psbValue in dic.Values)
+                    {
+                        if (psbValue is IPsbCollection)
+                        {
+                            TranslateToWin(psbValue, translations);
+                        }
+                    }
+                }
+                else if(obj is PsbCollection collection)
+                {
+                    foreach (IPsbValue psbValue in collection)
+                    {
+                        TranslateToWin(psbValue, translations);
+                    }
+                }
+
             }
         }
     }

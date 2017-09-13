@@ -68,7 +68,8 @@ namespace FreeMote.Tests
         public void TestCompileKrkr()
         {
             var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
-            var path = Path.Combine(resPath, "澄怜a_裸.psb-pure.psb.json");
+            //var path = Path.Combine(resPath, "澄怜a_裸.psb-pure.psb.json");
+            var path = Path.Combine(resPath, "e-mote38_KRKR-pure.psb.json");
             PsbCompiler.CompileToFile(path, path + ".psbuild.psb", null, 4, null, PsbSpec.win);
         }
 
@@ -76,15 +77,16 @@ namespace FreeMote.Tests
         public void TestCompileOther()
         {
             var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
-            var path = Path.Combine(resPath, "澄怜a_裸.psb-pure.psb.json.psbuild.psb.json");
-            PsbCompiler.CompileToFile(path, path + ".psbuild.psb", null, 4, null, PsbSpec.other);
+            var path = Path.Combine(resPath, "Trick\\e-mote38_win-pure.psb.json");
+            PsbCompiler.CompileToFile(path, path + ".psbuild.psb", null, 3, null, PsbSpec.win);
         }
 
         [TestMethod]
         public void TestCompileWin()
         {
             var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
-            var path = Path.Combine(resPath, "D愛子a_春服-pure.psb.json");
+            //var path = Path.Combine(resPath, "D愛子a_春服-pure.psb.json");
+            var path = Path.Combine(resPath, "dx_e-mote3.0ショコラパジャマa-pure.psb.json");
             PsbCompiler.CompileToFile(path, path + ".psbuild.psb", null, 4, null, PsbSpec.win);
         }
 
@@ -142,16 +144,34 @@ namespace FreeMote.Tests
         }
 
         [TestMethod]
+        public void TestGraft()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+            var path1 = Path.Combine(resPath, "e-mote38_KRKR-pure.psb.json.psbuild.psb.json");
+            PSB psb1 = PsbCompiler.LoadPsbFromJsonFile(path1);
+
+            var path2 = Path.Combine(resPath, "e-mote38_win-pure.psb.json");
+            PSB psb2 = PsbCompiler.LoadPsbFromJsonFile(path2);
+
+            psb1.Objects["metadata"] = psb2.Objects["metadata"];
+            psb1.Objects["easing"] = new PsbCollection(0);
+
+            psb1.Merge();
+            File.WriteAllBytes(path1 + ".graft.psb", psb1.Build());
+
+        }
+
+        [TestMethod]
         public void TestCompareDecompile()
         {
             var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
 
-            var pccPsb = new PSB(Path.Combine(resPath, "ca01_l_body_1.psz.psb-pure.psb.build.psb"));
+            var pccPsb = new PSB(Path.Combine(resPath, "e-mote38_win-pure.psb"));
             //var pccPsb = new PSB(Path.Combine(resPath, "ca01_l_body_1.psz.psb-pure.psb"));
             //var pccPsb = new PSB(Path.Combine(resPath, "ca01.psb"));
 
             //var psbuildPsb = new PSB(Path.Combine(resPath, "ca01_l_body_1.psz.psb-pure.psb.json.psbuild.psb"));
-            var psbuildPsb = new PSB(Path.Combine(resPath, "ca01_build.psb"));
+            var psbuildPsb = new PSB(Path.Combine(resPath, "e-mote38_KRKR-pure.psb.json.psbuild.psb"));
 
             //foreach (var s in psbuildPsb.Strings)
             //{
@@ -256,9 +276,9 @@ namespace FreeMote.Tests
                         return false;
                     case PsbCollection c1:
                         var c2 = (PsbCollection)p2;
-                        for (var i = 0; i < c1.Value.Count; i++)
+                        for (var i = 0; i < c1.Count; i++)
                         {
-                            if (CompareValue(c1.Value[i], c2.Value[i]))
+                            if (CompareValue(c1[i], c2[i]))
                             {
                                 continue;
                             }
@@ -267,9 +287,9 @@ namespace FreeMote.Tests
                         return true;
                     case PsbDictionary d1:
                         var d2 = (PsbDictionary)p2;
-                        foreach (var pair1 in d1.Value)
+                        foreach (var pair1 in d1)
                         {
-                            if (!d2.Value.ContainsKey(pair1.Key))
+                            if (!d2.ContainsKey(pair1.Key))
                             {
                                 Console.WriteLine($"Missing {pair1.Key}");
                             }
