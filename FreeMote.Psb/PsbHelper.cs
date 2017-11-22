@@ -158,7 +158,7 @@ namespace FreeMote.Psb
         }
 
         /// <summary>
-        /// Get default corresponding PixelFormat
+        /// Get <see cref="PsbSpec"/>'s default <see cref="PsbPixelFormat"/>
         /// </summary>
         /// <param name="spec"></param>
         /// <returns></returns>
@@ -175,6 +175,30 @@ namespace FreeMote.Psb
                 default:
                     return PsbPixelFormat.None;
             }
+        }
+
+        /// <summary>
+        /// Get it's Name in <see cref="PsbDictionary"/>
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public static string GetName(this IPsbChild c)
+        {
+            var source = c?.Parent as PsbDictionary;
+            var result = source?.FirstOrDefault(pair => Equals(pair.Value, c));
+            return result?.Value == null ? null : result.Value.Key;
+        }
+
+        /// <summary>
+        /// Get Name
+        /// </summary>
+        /// <param name="c"></param>
+        /// <returns></returns>
+        public static string GetName(this IPsbSingleton c, PsbDictionary parent = null)
+        {
+            var source = parent ?? c?.Parents.FirstOrDefault(p => p is PsbDictionary) as PsbDictionary;
+            var result = source?.FirstOrDefault(pair => Equals(pair.Value, c));
+            return result?.Value == null ? null : result.Value.Key;
         }
 
     }

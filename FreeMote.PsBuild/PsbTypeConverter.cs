@@ -9,6 +9,9 @@ using Newtonsoft.Json.Linq;
 
 namespace FreeMote.PsBuild
 {
+    /// <summary>
+    /// <see cref="JsonConverter"/> for PSB types
+    /// </summary>
     class PsbTypeConverter : JsonConverter
     {
         //internal static List<Type> SupportTypes = new List<Type> {
@@ -73,7 +76,7 @@ namespace FreeMote.PsBuild
                     foreach (var obj in dictionary)
                     {
                         writer.WritePropertyName(obj.Key);
-                        WriteJson(writer, obj, serializer);
+                        WriteJson(writer, obj.Value, serializer);
                     }
                     writer.WriteEndObject();
                     break;

@@ -8,8 +8,8 @@ Basic functions. Decrypt or encrypt Emote PSB files.
 Special API libs for Emote engine, which takes _pure_ (unencrypted) PSB files as input.
 ### FreeMote.Psb
 Parse Emote PSB format.
-### FreeMote.PsBuild (In Dev)
-Compile and decompile PSB files.
+### FreeMote.PsBuild
+Compile and decompile PSB files. Convert PSB among different platforms.
 ### FreeMote.Purify (Unreleased)
 Infer and calculate the key used by Emote PSB file just from the PSB file (rather than get from engine).
 ### FreeMote.Render (Unrealistic)
@@ -44,4 +44,6 @@ FreeMote is temporarily licensed under **LGPL**. Members from Project AZUSA can 
 * @WcLyic (牧濑红莉栖) for some PSB samples and Emote Editor help.
 * [MonoGame](https://github.com/MonoGame/MonoGame) for `DxtUtil` code. LICENSE: Ms-PL
 * Singyuen Yip for `Adler32` code.
-* @gdkchan for `DxtCodec` code.
+* @gdkchan for [DxtCodec](https://github.com/gdkchan/CEGTool/blob/master/CEGTool/DXTCodec.cs) code.
+* @mfascia for [TexturePacker](https://github.com/mfascia/TexturePacker) code.
+* All nuget references used in this project.

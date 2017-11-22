@@ -1,11 +1,12 @@
 ﻿using System;
-using System.Text;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using FreeMote.Psb;
 using FreeMote.PsBuild;
+using FreeMote.PsBuild.Converters;
+using FreeMote.PsBuild.Textures;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Newtonsoft.Json;
 
@@ -74,14 +75,6 @@ namespace FreeMote.Tests
         }
 
         [TestMethod]
-        public void TestCompileOther()
-        {
-            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
-            var path = Path.Combine(resPath, "Trick\\e-mote38_win-pure.psb.json");
-            PsbCompiler.CompileToFile(path, path + ".psbuild.psb", null, 3, null, PsbSpec.win);
-        }
-
-        [TestMethod]
         public void TestCompileWin()
         {
             var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
@@ -123,7 +116,6 @@ namespace FreeMote.Tests
             }
         }
 
-
         [TestMethod]
         public void TestDxt5Uncompress()
         {
@@ -147,19 +139,188 @@ namespace FreeMote.Tests
         public void TestGraft()
         {
             var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
-            var path1 = Path.Combine(resPath, "e-mote38_KRKR-pure.psb.json.psbuild.psb.json");
-            PSB psb1 = PsbCompiler.LoadPsbFromJsonFile(path1);
 
+            //var path = Path.Combine(resPath, "澄怜a_裸.psb-pure.psb.json");
+            var path = Path.Combine(resPath, "e-mote38_KRKR-pure.psb.json");
             var path2 = Path.Combine(resPath, "e-mote38_win-pure.psb.json");
-            PSB psb2 = PsbCompiler.LoadPsbFromJsonFile(path2);
+            PSB psbKrkr = PsbCompiler.LoadPsbFromJsonFile(path);
+            PSB psbWin = PsbCompiler.LoadPsbFromJsonFile(path2);
+            psbWin.SwitchSpec(PsbSpec.krkr);
+            //var metadata = (PsbDictionary)psbWin.Objects["metadata"];
+            //metadata["attrcomp"] = psbKrkr.Objects["metadata"].Children("attrcomp");
+            psbWin.Merge();
 
-            psb1.Objects["metadata"] = psb2.Objects["metadata"];
-            psb1.Objects["easing"] = new PsbCollection(0);
-
-            psb1.Merge();
-            File.WriteAllBytes(path1 + ".graft.psb", psb1.Build());
+            ////Graft
+            var resKrkr = psbKrkr.CollectResources(false);
+            var resWin = psbWin.CollectResources(false);
+            var headWin = resWin.FirstOrDefault(r => r.Height == 186 && r.Width == 122);
+            var headKrkr = resKrkr.FirstOrDefault(r => r.Height == 186 && r.Width == 122);
+            if (headWin != null && headKrkr != null)
+            {
+                headWin.Resource.Data = headKrkr.Resource.Data;
+            }
+            //foreach (var resourceMetadata in resWin)
+            //{
+            //    var sameRes = resKrkr.FirstOrDefault(r => r.Height == resourceMetadata.Height && r.Width == resourceMetadata.Width);
+            //    if (sameRes != null)
+            //    {
+            //        Console.WriteLine($"{sameRes} {sameRes.Width}x{sameRes.Height} found.");
+            //        resourceMetadata.Resource.Data = sameRes.Resource.Data;
+            //    }
+            //}
+            psbWin.Merge();
+            File.WriteAllBytes("emote_win2krkr.psb", psbWin.Build());
+            //File.WriteAllText("emote_krkr2win.json", PsbDecompiler.Decompile(psb2));
 
         }
+
+        [TestMethod]
+        public void TestFindByPath()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+
+            var path = Path.Combine(resPath, "e-mote38_win-pure.psb.json");
+            PSB psb = PsbCompiler.LoadPsbFromJsonFile(path);
+
+            var obj = psb.Objects.FindByPath("/object/all_parts/motion/タイムライン構造/bounds");
+            var type = obj.Type;
+
+            var objs = psb.Objects.FindAllByPath("/object/*/motion/*");
+
+            foreach (var psbValue in objs)
+            {
+                if (psbValue is PsbDictionary dic)
+                {
+                    var s = dic.GetName();
+                    Console.WriteLine(s);
+                }
+                else
+                {
+                    Console.WriteLine($"Not a PsbObject: {psbValue}");
+                }
+            }
+        }
+
+        [TestMethod]
+        public void TestSplitTexture()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+
+            //var path = Path.Combine(resPath, "dx_e-mote3.0ショコラパジャマa-pure.psb.json");
+            //var path = Path.Combine(resPath, "ca01_l_body_1.psz.psb-pure.psb.json");
+            var path = Path.Combine(resPath, "e-mote38_win-pure.psb.json");
+            //var path = Path.Combine(resPath, "akira_guide-pure.psb.json");
+            //PSB psb = PsbCompiler.LoadPsbFromJsonFile(path);
+            PSB psb = new PSB("emote_krkr2win.psb");
+            psb.SplitTextureToFiles("texs");
+        }
+
+        [TestMethod]
+        public void TestPackTexture()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+
+            var path = Path.Combine(resPath, "澄怜a_裸.psb-pure");
+            var savePath = Path.Combine(path, "packed");
+            Dictionary<string,Image> imgs = new Dictionary<string, Image>();
+            foreach (var file in Directory.EnumerateFiles(path, "*.png", SearchOption.AllDirectories))
+            {
+                imgs.Add(file, Image.FromFile(file));
+            }
+            TexturePacker packer = new TexturePacker
+            {
+                FitHeuristic = BestFitHeuristic.MaxOneAxis,
+            };
+            packer.Process(imgs, 4096, 1, false);
+            if (Directory.Exists(savePath))
+            {
+                Directory.Delete(savePath);
+            }
+            Directory.CreateDirectory(savePath);
+            packer.SaveAtlasses(Path.Combine(savePath, "tex.txt"));
+        }
+
+        [TestMethod]
+        public void TestPathTravel()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+
+            var path = Path.Combine(resPath, "e-mote38_win-pure.psb.json");
+            PSB psb = PsbCompiler.LoadPsbFromJsonFile(path);
+
+            var targetPath = "/object/all_parts/motion/タイムライン構造/bounds";
+            var obj = (PsbDictionary)psb.Objects.FindByPath(targetPath);
+            var objPath = obj.Path;
+            Assert.AreEqual(targetPath, objPath);
+        }
+
+        [TestMethod]
+        public void TestConvertWin2Krkr()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+
+            //var path = Path.Combine(resPath, "e-mote38_win-pure.psb.json");
+            var path = Path.Combine(resPath, "e-mote38_win-pure.psb");
+            //var path = Path.Combine(resPath, "dx_e-mote3.0ショコラパジャマa-pure.psb.json");
+            //PSB psb = PsbCompiler.LoadPsbFromJsonFile(path);
+            PSB psb = new PSB(path);
+            psb.SwitchSpec(PsbSpec.krkr);
+            //Common2KrkrConverter converter = new Common2KrkrConverter();
+            //converter.Convert(psb);
+            psb.Merge();
+            File.WriteAllBytes("emote_test_front.psb", psb.Build());
+            File.WriteAllText("emote_test_front.json", PsbDecompiler.Decompile(psb));
+            psb.SwitchSpec(PsbSpec.win);
+            psb.Merge();
+            File.WriteAllBytes("emote_2x.psb", psb.Build());
+        }
+
+        [TestMethod]
+        public void TestConvertCommon2Krkr()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+
+            var path = Path.Combine(resPath, "akira_guide-pure.psb.json");
+            PSB psb = PsbCompiler.LoadPsbFromJsonFile(path);
+
+            Common2KrkrConverter converter = new Common2KrkrConverter();
+            converter.Convert(psb);
+            psb.Merge();
+            File.WriteAllBytes("emote_test_front.psb", psb.Build());
+            File.WriteAllText("emote_test_front.json", PsbDecompiler.Decompile(psb));
+        }
+
+        [TestMethod]
+        public void TestConvertKrkr2Win()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+
+            //var path = Path.Combine(resPath, "澄怜a_裸.psb-pure.psb");
+            var path = Path.Combine(resPath, "澄怜a_裸.psb-pure.psb.json");
+            //var path = Path.Combine(resPath, "e-mote38_KRKR-pure.psb.json");
+            //var path = Path.Combine(resPath, "e-mote38_KRKR-pure.psb");
+            PSB psb = PsbCompiler.LoadPsbFromJsonFile(path);
+            //PSB psb = new PSB(path);
+            psb.SwitchSpec(PsbSpec.win);
+            psb.Merge();
+            File.WriteAllBytes("emote_krkr2win.psb", psb.Build());
+            File.WriteAllText("emote_krkr2win.json", PsbDecompiler.Decompile(psb));
+            RL.ConvertToImageFile(psb.Resources.First().Data, "tex-in-psb.png", 4096,4096, PsbImageFormat.Png, PsbPixelFormat.WinRGBA8); 
+        }
+
+        [TestMethod]
+        public void TestConvertCommon2Win()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+
+            var path = Path.Combine(resPath, "akira_guide-pure.psb");
+            //PSB psb = PsbCompiler.LoadPsbFromJsonFile(path);
+            PSB psb = new PSB(path);
+            psb.SwitchSpec(PsbSpec.win);
+            psb.Merge();
+            File.WriteAllBytes("emote_common2win.psb", psb.Build());
+        }
+
 
         [TestMethod]
         public void TestCompareDecompile()

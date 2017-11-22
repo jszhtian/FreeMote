@@ -79,6 +79,7 @@ namespace FreeMote.Psb
         /// <see cref="IPsbCollection"/> which contain this
         /// </summary>
         IPsbCollection Parent { get; set; }
+        string Path { get; }
     }
 
 
@@ -93,13 +94,11 @@ namespace FreeMote.Psb
         List<IPsbCollection> Parents { get; set; }
     }
 
-    /// <inheritdoc />
     /// <summary>
     /// Collection
     /// </summary>
     public interface IPsbCollection : IPsbChild, IEnumerable
     {
-        IPsbCollection Parent { get; }
         IPsbValue this[int i]
         {
             get;
@@ -157,7 +156,10 @@ namespace FreeMote.Psb
         {
             bw.Write((byte)Type);
         }
-        
+
+        /// <summary>
+        /// Null
+        /// </summary>
         public static PsbNull Null => new PsbNull();
     }
 
@@ -719,12 +721,15 @@ namespace FreeMote.Psb
     [Serializable]
     public class PsbDictionary : Dictionary<string, IPsbValue>, IPsbValue, IPsbCollection
     {
-        public PsbDictionary(int capacity):base(capacity)
+        public PsbDictionary(int capacity) : base(capacity)
         {
         }
         public Dictionary<string, IPsbValue> Value => this;
-        
+
         public IPsbCollection Parent { get; set; } = null;
+
+        public string Path => Parent != null ? $"{Parent.Path}{(Parent.Path.EndsWith("/") ? "" : "/")}{this.GetName() ?? "(array)"}" : "/";
+
 
         IPsbValue IPsbCollection.this[int i] => ContainsKey(i.ToString()) ? base[i.ToString()] : null;
 
@@ -750,9 +755,11 @@ namespace FreeMote.Psb
         }
 
         public List<IPsbValue> Value => this;
-        
+
         public IPsbCollection Parent { get; set; } = null;
-        
+
+        public string Path => Parent != null ? $"{Parent.Path}{(Parent.Path.EndsWith("/") ? "" : "/")}{this.GetName() ?? "(array)"}" : "/";
+
         public new IPsbValue this[int index]
         {
             get => index < Count ? base[index] : null;
@@ -777,7 +784,8 @@ namespace FreeMote.Psb
         {
             Index = br.ReadBytes(n).UnzipUInt();
         }
-        public PsbResource(uint index = 0)
+
+        public PsbResource(uint? index = null)
         {
             Index = index;
         }

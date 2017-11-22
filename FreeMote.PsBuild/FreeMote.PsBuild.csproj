@@ -31,12 +31,18 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="FastBitmapLib, Version=1.1.2.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\FastBitmapLib.1.1.2\lib\net452\FastBitmapLib.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.10.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.ValueTuple, Version=4.0.2.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.ValueTuple.4.4.0\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
+    </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -53,6 +59,12 @@
     <Compile Include="PsbResCollector.cs" />
     <Compile Include="PsbTypeConverter.cs" />
     <Compile Include="ResourceMetadata.cs" />
+    <Compile Include="Converters\CommonWinConverter.cs" />
+    <Compile Include="Converters\ISpecConverter.cs" />
+    <Compile Include="Converters\Krkr2CommonConverter.cs" />
+    <Compile Include="Textures\TextureSpliter.cs" />
+    <Compile Include="Converters\Common2KrkrConverter.cs" />
+    <Compile Include="Textures\TexturePacker.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FreeMote.Psb\FreeMote.Psb.csproj">
