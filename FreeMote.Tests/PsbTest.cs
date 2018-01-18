@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Text;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using FreeMote.Psb;
 
@@ -17,9 +14,6 @@ namespace FreeMote.Tests
     {
         public PsbTest()
         {
-            //
-            //TODO:  在此处添加构造函数逻辑
-            //
         }
 
         private TestContext testContextInstance;
@@ -88,39 +82,7 @@ namespace FreeMote.Tests
                 PSB psb = new PSB(fs);
             }
         }
-
-        [TestMethod]
-        public void TestRlUncompress()
-        {
-            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
-
-            var path = Path.Combine(resPath, "澄怜a_裸.psb-pure", "84.bin"); //輪郭00
-            RL.UncompressToImageFile(File.ReadAllBytes(path), path + ".png", 570, 426);
-            path = Path.Combine(resPath, "澄怜a_裸.psb-pure", "89.bin"); //胸00
-            RL.UncompressToImageFile(File.ReadAllBytes(path), path + ".png", 395, 411);
-        }
-
-        [TestMethod]
-        public void TestRlCompress()
-        {
-            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
-            string path;
-            byte[] bytes;
-            path = Path.Combine(resPath, "澄怜a_裸.psb-pure", "84.bin"); //輪郭00
-            RL.UncompressToImageFile(File.ReadAllBytes(path), path + ".png", 570, 426);
-            bytes = RL.CompressImageFile(path + ".png");
-            File.WriteAllBytes(path + ".rl", bytes);
-            RL.UncompressToImageFile(File.ReadAllBytes(path + ".rl"), path + ".rl.png", 570, 426);
-            Assert.IsTrue(bytes.SequenceEqual(File.ReadAllBytes(path)));
-
-            path = Path.Combine(resPath, "澄怜a_裸.psb-pure", "89.bin"); //胸00
-            RL.UncompressToImageFile(File.ReadAllBytes(path), path + ".png", 395, 411);
-            bytes = RL.CompressImageFile(path + ".png");
-            File.WriteAllBytes(path + ".rl", bytes);
-            RL.UncompressToImageFile(File.ReadAllBytes(path + ".rl"), path + ".rl.png", 395, 411);
-            Assert.IsTrue(bytes.SequenceEqual(File.ReadAllBytes(path)));
-        }
-
+        
         [TestMethod]
         public void TestPsbNumbers()
         {
@@ -131,7 +93,7 @@ namespace FreeMote.Tests
                 BinaryReader br = new BinaryReader(ms);
                 p1.WriteTo(bw);
                 ms.Seek(0, SeekOrigin.Begin);
-                var p2 = new PsbNumber((PsbType)br.ReadByte(), br);
+                var p2 = new PsbNumber((PsbObjType)br.ReadByte(), br);
                 Assert.AreEqual(p1.IntValue, p2.IntValue);
             }
         }

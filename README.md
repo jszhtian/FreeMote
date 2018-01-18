@@ -1,4 +1,6 @@
 # FreeMote
+[![Build Status](https://ci.appveyor.com/api/projects/status/github/UlyssesWu/FreeMote?branch=master&svg=true)](https://ci.appveyor.com/project/UlyssesWu/freemote/build/artifacts)
+
 Managed Emote tool libs.
 
 ## Components
@@ -7,7 +9,7 @@ Basic functions. Decrypt or encrypt Emote PSB files.
 ### FreeMote [(SDK)](https://github.com/Project-AZUSA/FreeMote-SDK)
 Special API libs for Emote engine, which takes _pure_ (unencrypted) PSB files as input.
 ### FreeMote.Psb
-Parse Emote PSB format.
+Parse PSB format.
 ### FreeMote.PsBuild
 Compile and decompile PSB files. Convert PSB among different platforms.
 ### FreeMote.Purify (Unreleased)
@@ -23,14 +25,14 @@ Convert Emote PSB files. A managed version of `emote_conv`(by number201724).
 ### PsbDecompile (FreeMote.Tools.PsbDecompile)
 Decompile PSB files. A managed version of `decompiler`(by number201724).
 ### PsBuild (FreeMote.Tools.PsBuild)
-Compile Emote description json to PSB. A managed version of `pcc`(by number201724).
+Compile PSB description json to PSB. A managed version of `pcc`(by number201724).
 ### [FreeMoteViewer](https://github.com/Project-AZUSA/FreeMote.NET#freemoteviewer) (FreeMote.Tools.Viewer)
 Open and render Emote _pure_ PSB.
 
 ---
 by **Ulysses** (wdwxy12345@gmail.com) from Project AZUSA
 
-FreeMote is temporarily licensed under **LGPL**. Members from Project AZUSA can use it freely.
+FreeMote is licensed under **LGPL**.
 
 [Issue Report](https://github.com/UlyssesWu/FreeMote/issues) · [Pull Request](https://github.com/UlyssesWu/FreeMote/pulls) · [Wiki](https://github.com/Project-AZUSA/FreeMote/wiki)
 
@@ -46,4 +48,5 @@ FreeMote is temporarily licensed under **LGPL**. Members from Project AZUSA can 
 * Singyuen Yip for `Adler32` code.
 * @gdkchan for [DxtCodec](https://github.com/gdkchan/CEGTool/blob/master/CEGTool/DXTCodec.cs) code.
 * @mfascia for [TexturePacker](https://github.com/mfascia/TexturePacker) code.
+* @morkt for [ImageTLG](https://github.com/morkt/GARbro/blob/master/ArcFormats/KiriKiri/ImageTLG.cs) code. LICENSE: MIT
 * All nuget references used in this project.

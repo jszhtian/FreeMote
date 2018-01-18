@@ -58,9 +58,9 @@ namespace FreeMote.Tests
         public void TestDirectCompile()
         {
             var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
-            var path = Path.Combine(resPath, "ca01_l_body_1.psz.psb-pure.psb");
+            var path = Path.Combine(resPath, "emote_test2-pure.psb");
             PSB psb = new PSB(path);
-            psb.Header.Version = 2;
+            psb.Header.Version = 3;
             psb.UpdateIndexes();
             File.WriteAllBytes(path + ".build.psb", psb.Build());
         }
@@ -81,6 +81,19 @@ namespace FreeMote.Tests
             //var path = Path.Combine(resPath, "D愛子a_春服-pure.psb.json");
             var path = Path.Combine(resPath, "dx_e-mote3.0ショコラパジャマa-pure.psb.json");
             PsbCompiler.CompileToFile(path, path + ".psbuild.psb", null, 4, null, PsbSpec.win);
+        }
+
+        [TestMethod]
+        public void TestCompileEms()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+            //var path = Path.Combine(resPath, "akira_guide-pure.psb.json");
+            var path = Path.Combine(resPath, "emote_test2-pure.psb.json");
+            var psb = PsbCompiler.LoadPsbFromJsonFile(path);
+            psb.Platform = PsbSpec.ems;
+            psb.Merge();
+            File.WriteAllBytes(path + ".build.psb", psb.Build()); 
+            //PsbCompiler.CompileToFile(path, path + ".psbuild.psb", null, 3, null, PsbSpec.ems);
         }
 
         [TestMethod]
@@ -114,25 +127,6 @@ namespace FreeMote.Tests
             {
                 Assert.AreEqual(doubles[i], result2[i]);
             }
-        }
-
-        [TestMethod]
-        public void TestDxt5Uncompress()
-        {
-            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
-            var rawDxt = Path.Combine(resPath, "D愛子a_春服-pure", "0.raw");
-            var rawBytes = File.ReadAllBytes(rawDxt);
-            RL.ConvertToImageFile(rawBytes, rawDxt + "-convert.png", 4096, 4096, PsbImageFormat.Png, PsbPixelFormat.DXT5);
-        }
-
-        [TestMethod]
-        public void TestDxt5Compress()
-        {
-            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
-            var rawPng = Path.Combine(resPath, "D愛子a_春服-pure", "0.png");
-            Bitmap bitmap = new Bitmap(rawPng);
-            var bc3Bytes = DxtUtil.Dxt5Encode(bitmap);
-            RL.ConvertToImageFile(bc3Bytes, rawPng + "-convert.png", 4096, 4096, PsbImageFormat.Png, PsbPixelFormat.DXT5);
         }
 
         [TestMethod]
@@ -321,6 +315,48 @@ namespace FreeMote.Tests
             File.WriteAllBytes("emote_common2win.psb", psb.Build());
         }
 
+        [TestMethod]
+        public void TestConvertWin2Common()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+
+            var path = Path.Combine(resPath, "ca01_l_body_1.psz.psb-pure.psb");
+            //PSB psb = PsbCompiler.LoadPsbFromJsonFile(path);
+            PSB psb = new PSB(path);
+            psb.SwitchSpec(PsbSpec.common);
+            psb.Merge();
+            File.WriteAllBytes("emote_win2common.psb", psb.Build());
+        }
+
+        [TestMethod]
+        public void TestConvertWin2Ems()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+
+            var path = Path.Combine(resPath, "ca01_s_body_2.psz.psb-pure.psb");
+            //PSB psb = PsbCompiler.LoadPsbFromJsonFile(path);
+            PSB psb = new PSB(path);
+            psb.SwitchSpec(PsbSpec.ems);
+            psb.Merge();
+            File.WriteAllBytes("emote_win2ems.psb", psb.Build());
+        }
+
+        [TestMethod]
+        public void TestDecompileMenuPsb()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+            var path = Path.Combine(resPath, "title.pimg");
+            var json = PsbDecompiler.Decompile(path, out var psb);
+        }
+
+        [TestMethod]
+        public void TestCompileMenuPsb()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+
+            var path = Path.Combine(resPath, "title.psb.json");
+            PsbCompiler.CompileToFile(path, path + ".psbuild.psb", null, 2);
+        }
 
         [TestMethod]
         public void TestCompareDecompile()

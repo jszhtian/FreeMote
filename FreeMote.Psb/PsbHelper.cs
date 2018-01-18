@@ -167,6 +167,7 @@ namespace FreeMote.Psb
             switch (spec)
             {
                 case PsbSpec.common:
+                case PsbSpec.ems:
                     return PsbPixelFormat.CommonRGBA8;
                 case PsbSpec.krkr:
                 case PsbSpec.win:
@@ -174,6 +175,25 @@ namespace FreeMote.Psb
                 case PsbSpec.other:
                 default:
                     return PsbPixelFormat.None;
+            }
+        }
+
+        /// <summary>
+        /// Get <see cref="PsbType"/>'s default extension
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public static string DefaultExtension(this PsbType type)
+        {
+            switch (type)
+            {
+                case PsbType.Pimg:
+                    return "pimg";
+                case PsbType.Scn:
+                    return "scn";
+                case PsbType.Motion:
+                default:
+                    return "psb";
             }
         }
 

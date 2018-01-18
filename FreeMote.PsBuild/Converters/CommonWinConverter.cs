@@ -5,7 +5,7 @@ using FreeMote.Psb;
 namespace FreeMote.PsBuild.Converters
 {
     /// <summary>
-    /// Common-Win Converter
+    /// Common/Ems-Win Converter
     /// </summary>
     class CommonWinConverter : ISpecConverter
     {
@@ -18,16 +18,22 @@ namespace FreeMote.PsBuild.Converters
         /// </summary>
         public PsbPixelFormat TargetPixelFormat { get; set; }
         public bool UseRL { get; set; } = false;
-        public IList<PsbSpec> FromSpec { get; } = new List<PsbSpec> {PsbSpec.win, PsbSpec.common};
-        public IList<PsbSpec> ToSpec { get; } = new List<PsbSpec> {PsbSpec.krkr, PsbSpec.win};
+        /// <summary>
+        /// If true, it is an EmsWinConverter
+        /// </summary>
+        public bool EmsAsCommon { get; set; } = false;
+        public IList<PsbSpec> FromSpec { get; } = new List<PsbSpec> {PsbSpec.win, PsbSpec.common, PsbSpec.ems};
+        public IList<PsbSpec> ToSpec { get; } = new List<PsbSpec> {PsbSpec.common, PsbSpec.win, PsbSpec.ems};
         public void Convert(PSB psb)
         {
             if (!FromSpec.Contains(psb.Platform))
             {
                 throw new FormatException("Can not convert Spec for this PSB");
             }
-            var toSpec = psb.Platform == PsbSpec.win ? PsbSpec.common : PsbSpec.win;
-            var toPixelFormat = toSpec == PsbSpec.common ? PsbPixelFormat.CommonRGBA8 : PsbPixelFormat.WinRGBA8;
+
+            var asSpec = EmsAsCommon ? PsbSpec.ems : PsbSpec.common;
+            var toSpec = psb.Platform == PsbSpec.win ? asSpec : PsbSpec.win;
+            var toPixelFormat = toSpec == asSpec ? PsbPixelFormat.CommonRGBA8 : PsbPixelFormat.WinRGBA8;
             var resList = psb.CollectResources(false);
             foreach (var resMd in resList)
             {

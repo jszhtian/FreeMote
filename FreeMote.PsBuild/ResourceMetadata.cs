@@ -16,13 +16,21 @@ namespace FreeMote.PsBuild
         /// </summary>
         None,
         /// <summary>
-        /// RL
+        /// RLE
         /// </summary>
         RL,
         /// <summary>
         /// Raw Bitmap
         /// </summary>
         Bmp,
+        /// <summary>
+        /// KRKR TLG
+        /// </summary>
+        Tlg,
+        /// <summary>
+        /// By extension
+        /// </summary>
+        ByName,
     }
 
     /// <summary>
@@ -92,13 +100,16 @@ namespace FreeMote.PsBuild
                         return PsbPixelFormat.DXT5;
                     case "RGBA8":
                         return Spec == PsbSpec.common ? PsbPixelFormat.CommonRGBA8 : PsbPixelFormat.WinRGBA8;
+                    case "RGBA4444":
+                        return PsbPixelFormat.RGBA4444;
                         default:
                         return PsbPixelFormat.None;
                 }
             }
         }
 
-        private string DebuggerString => $"{Part}/{Name}({Width}*{Height}){(Compress == PsbCompressType.RL ? "[RL]" : "")}";
+        private string DebuggerString =>
+            $"{(string.IsNullOrWhiteSpace(Part) ? "" : Part + "/")}{Name}({Width}*{Height}){(Compress == PsbCompressType.RL ? "[RL]" : "")}";
 
         /// <summary>
         /// Convert Resource to Image

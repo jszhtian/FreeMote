@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using FreeMote.Psb;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace FreeMote.PsBuild
 {
@@ -22,7 +23,7 @@ namespace FreeMote.PsBuild
         /// <param name="version">PSB version</param>
         /// <param name="cryptKey">CryptKey, if you need to use it outside FreeMote</param>
         /// <param name="platform">PSB Platform</param>
-        public static void CompileToFile(string inputPath, string outputPath, string inputResPath = null, ushort version = 3, uint? cryptKey = null, PsbSpec platform = PsbSpec.common)
+        public static void CompileToFile(string inputPath, string outputPath, string inputResPath = null, ushort? version = null, uint? cryptKey = null, PsbSpec? platform = null)
         {
             if (string.IsNullOrEmpty(inputPath))
             {
@@ -61,21 +62,54 @@ namespace FreeMote.PsBuild
         /// <param name="cryptKey">CryptKey, if you need to use it outside FreeMote</param>
         /// <param name="spec">PSB Platform</param>
         /// <returns></returns>
-        public static byte[] Compile(string inputJson, string inputResJson, string baseDir = null, ushort version = 3, uint? cryptKey = null,
-            PsbSpec spec = PsbSpec.common)
+        public static byte[] Compile(string inputJson, string inputResJson, string baseDir = null, ushort? version = null, uint? cryptKey = null,
+            PsbSpec? spec = null)
         {
             //Parse
-            PSB psb = Parse(inputJson, version);
+            PSB psb = Parse(inputJson, version ?? 3);
             //Link
             if (!string.IsNullOrWhiteSpace(inputResJson))
             {
-                psb.Link(inputResJson, baseDir);
+                if (inputResJson.Trim().StartsWith("{")) //resx.json
+                {
+                    PsbResourceJson resx = JsonConvert.DeserializeObject<PsbResourceJson>(inputResJson);
+                    if (resx.PsbType != null)
+                    {
+                        psb.Type = resx.PsbType.Value;
+                    }
+                    if (resx.PsbVersion != null && version == null)
+                    {
+                        psb.Header.Version = resx.PsbVersion.Value;
+                    }
+                    if (resx.Platform != null && spec == null)
+                    {
+                        psb.SwitchSpec(resx.Platform.Value, resx.Platform.Value.DefaultPixelFormat());
+                    }
+                    if (resx.CryptKey != null & cryptKey == null)
+                    {
+                        cryptKey = resx.CryptKey;
+                    }
+
+                    if (resx.ExternalTextures)
+                    {
+                        Console.WriteLine("[INFO] External Texture mode ON, no resource will be compiled.");
+                    }
+                    else
+                    {
+                        psb.Link(resx, baseDir);
+                    }
+                }
+                else
+                {
+                    List<string> resources = JsonConvert.DeserializeObject<List<string>>(inputResJson);
+                    psb.Link(resources, baseDir);
+                }
             }
             //Build
             psb.Merge();
-            if (spec != psb.Platform)
+            if (spec != null && spec != psb.Platform)
             {
-                psb.SwitchSpec(spec, spec.DefaultPixelFormat());
+                psb.SwitchSpec(spec.Value, spec.Value.DefaultPixelFormat());
                 psb.Merge();
             }
             var bytes = psb.Build();
@@ -90,7 +124,7 @@ namespace FreeMote.PsBuild
         /// <param name="inputResPath">Resource Json file</param>
         /// <param name="version">PSB version</param>
         /// <returns></returns>
-        public static PSB LoadPsbFromJsonFile(string inputPath, string inputResPath = null, ushort version = 3)
+        public static PSB LoadPsbFromJsonFile(string inputPath, string inputResPath = null, ushort? version = null)
         {
             if (string.IsNullOrEmpty(inputPath))
             {
@@ -106,20 +140,52 @@ namespace FreeMote.PsBuild
                 }
             }
 
-            string resJson = null;
+            string inputResJson = null;
             string baseDir = Path.GetDirectoryName(inputPath);
             if (File.Exists(inputResPath))
             {
-                resJson = File.ReadAllText(inputResPath);
+                inputResJson = File.ReadAllText(inputResPath);
                 baseDir = Path.GetDirectoryName(inputPath);
             }
 
             //Parse
-            PSB psb = Parse(File.ReadAllText(inputPath), version);
+            PSB psb = Parse(File.ReadAllText(inputPath), version ?? 3);
             //Link
-            if (!string.IsNullOrWhiteSpace(resJson))
+            if (!string.IsNullOrWhiteSpace(inputResJson))
             {
-                psb.Link(resJson, baseDir);
+                if (inputResJson.Trim().StartsWith("{")) //resx.json
+                {
+                    PsbResourceJson resx = JsonConvert.DeserializeObject<PsbResourceJson>(inputResJson);
+                    if (resx.PsbType != null)
+                    {
+                        psb.Type = resx.PsbType.Value;
+                    }
+                    if (resx.PsbVersion != null && version == null)
+                    {
+                        psb.Header.Version = resx.PsbVersion.Value;
+                    }
+                    if (resx.Platform != null)
+                    {
+                        psb.SwitchSpec(resx.Platform.Value, resx.Platform.Value.DefaultPixelFormat());
+                    }
+                    if (resx.ExternalTextures)
+                    {
+                        Console.WriteLine("[INFO] External Texture mode ON, no resource will be compiled.");
+                    }
+                    else
+                    {
+                        psb.Link(resx, baseDir);
+                    }
+                }
+                else
+                {
+                    List<string> resources = JsonConvert.DeserializeObject<List<string>>(inputResJson);
+                    psb.Link(resources, baseDir);
+                }
+            }
+            if (version != null)
+            {
+                psb.Header.Version = version.Value;
             }
             psb.Merge();
             return psb;
@@ -131,6 +197,7 @@ namespace FreeMote.PsBuild
             {
                 Objects = JsonConvert.DeserializeObject<PsbDictionary>(json, new PsbTypeConverter())
             };
+            psb.Type = psb.InferType();
             return psb;
         }
 
@@ -141,7 +208,17 @@ namespace FreeMote.PsBuild
             {
                 case ".png":
                 case ".bmp":
-                    data = compressType == PsbCompressType.RL ? RL.CompressImageFile(path, pixelFormat) : RL.GetPixelBytesFromImageFile(path, pixelFormat);
+                    switch (compressType)
+                    {
+                        case PsbCompressType.RL:
+                            data = RL.CompressImageFile(path, pixelFormat);
+                            break;
+                        case PsbCompressType.Tlg:
+                        //TODO: TLG encode
+                        default:
+                            data = RL.GetPixelBytesFromImageFile(path, pixelFormat);
+                            break;
+                    }
                     break;
                 case ".rl":
                     data = compressType == PsbCompressType.RL ? File.ReadAllBytes(path) : RL.Uncompress(File.ReadAllBytes(path));
@@ -149,6 +226,7 @@ namespace FreeMote.PsBuild
                 case ".raw":
                     data = compressType == PsbCompressType.RL ? RL.Compress(File.ReadAllBytes(path)) : File.ReadAllBytes(path);
                     break;
+                case ".tlg": //TODO: tlg encode
                 default: //For `.bin`, you have to handle by yourself
                     data = File.ReadAllBytes(path);
                     break;
@@ -160,11 +238,10 @@ namespace FreeMote.PsBuild
         /// Link
         /// </summary>
         /// <param name="psb"></param>
-        /// <param name="resJson"></param>
+        /// <param name="resPaths">resource paths</param>
         /// <param name="baseDir"></param>
-        internal static void Link(this PSB psb, string resJson, string baseDir = null)
+        internal static void Link(this PSB psb, List<string> resPaths, string baseDir = null)
         {
-            List<string> resPaths = JsonConvert.DeserializeObject<List<string>>(resJson);
             var resList = psb.CollectResources();
             foreach (var resPath in resPaths)
             {
@@ -179,7 +256,36 @@ namespace FreeMote.PsBuild
                     continue;
                 }
                 var fullPath = Path.Combine(baseDir ?? "", resPath.Replace('/', '\\'));
-                byte[] data = LoadImageBytes(fullPath, psb.Platform.CompressType(), resMd.PixelFormat);
+                byte[] data = LoadImageBytes(fullPath, resMd.Compress/*psb.Platform.CompressType()*/, resMd.PixelFormat);
+                resMd.Resource.Data = data;
+            }
+        }
+
+        /// <summary>
+        /// Link
+        /// </summary>
+        /// <param name="psb"></param>
+        /// <param name="resx">advanced resource json(resx.jon)</param>
+        /// <param name="baseDir"></param>
+        internal static void Link(this PSB psb, PsbResourceJson resx, string baseDir)
+        {
+            var resList = psb.CollectResources();
+            foreach (var resxResource in resx.Resources)
+            {
+                var resMd = uint.TryParse(resxResource.Key, out uint rid)
+                    ? resList.FirstOrDefault(r => r.Index == rid)
+                    : resList.FirstOrDefault(r =>
+                        resxResource.Key == $"{r.Part}{PsbResCollector.ResourceNameDelimiter}{r.Name}");
+                if (resMd == null)
+                {
+                    Console.WriteLine($"[WARN]{resxResource.Key} is not used.");
+                    continue;
+                }
+
+                var fullPath = Path.IsPathRooted(resxResource.Value)
+                    ? resxResource.Value
+                    : Path.Combine(baseDir ?? "", resxResource.Value.Replace('/', '\\'));
+                byte[] data = LoadImageBytes(fullPath, resMd.Compress/*psb.Platform.CompressType()*/, resMd.PixelFormat);
                 resMd.Resource.Data = data;
             }
         }

@@ -5,16 +5,16 @@ using System.Linq;
 namespace FreeMote
 {
     /// <summary>
-    /// PSB Pixel Compress (for images)
+    /// RLE Compress
     /// <para>originally by number201724</para>
     /// </summary>
-    internal static class PixelCompress
+    internal static class RleCompress
     {
         public const int LzssLookShift = 7;
         public const int LzssLookAhead = 1 << LzssLookShift;
 
         /// <summary>
-        /// Pixel Uncompress
+        /// RLE Uncompress
         /// </summary>
         /// <param name="input"></param>
         /// <param name="actualSize"></param>
@@ -147,12 +147,12 @@ namespace FreeMote
             {
                 return BitConverter.ToUInt32(b1, 0) == BitConverter.ToUInt32(b2, 0);
             }
-            return !b1.Where((t, i) => t != b2[i]).Any();
+            return b1.SequenceEqual(b2);
         }
 
 
         /// <summary>
-        /// Pixel Compress
+        /// RLE Compress
         /// </summary>
         /// <param name="input"></param>
         /// <param name="align"></param>

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using FreeMote.Psb;
@@ -53,13 +54,11 @@ namespace FreeMote.PsBuild
         /// Decompile Pure PSB as Json
         /// </summary>
         /// <param name="path"></param>
-        /// <param name="resources">resources bytes</param>
+        /// <param name="psb"></param>
         /// <returns></returns>
-
-        public static string Decompile(string path, out List<ResourceMetadata> resources)
+        public static string Decompile(string path, out PSB psb)
         {
-            PSB psb = new PSB(path);
-            resources = psb.CollectResources();
+            psb = new PSB(path);
             return Decompile(psb);
         }
 
@@ -74,16 +73,25 @@ namespace FreeMote.PsBuild
         /// <param name="inputPath">PSB file path</param>
         /// <param name="imageOption">whether to extract image to common format</param>
         /// <param name="extractFormat">if extract, what format do you want</param>
-        public static void DecompileToFile(string inputPath, PsbImageOption imageOption = PsbImageOption.Original, PsbImageFormat extractFormat = PsbImageFormat.Png)
+        public static void DecompileToFile(string inputPath, PsbImageOption imageOption = PsbImageOption.Original, PsbImageFormat extractFormat = PsbImageFormat.Png, bool useResx = true)
         {
             var name = Path.GetFileNameWithoutExtension(inputPath);
             var dirPath = Path.Combine(Path.GetDirectoryName(inputPath), name);
-            File.WriteAllText(inputPath + ".json", Decompile(inputPath, out List<ResourceMetadata> resources));
+            File.WriteAllText(inputPath + ".json", Decompile(inputPath, out var psb));
+            var resources = psb.CollectResources();
+            PsbResourceJson resx = new PsbResourceJson
+            {
+                PsbVersion = psb.Header.Version,
+                PsbType = psb.Type,
+                Platform = psb.Platform,
+                ExternalTextures = psb.Type == PsbType.Motion && psb.Resources.Count <= 0
+            };
+            psb = null;
             if (!Directory.Exists(dirPath))
             {
                 Directory.CreateDirectory(dirPath);
             }
-            var resPaths = new List<string>(resources.Count);
+            Dictionary<string, string> resDictionary = new Dictionary<string, string>();
             for (int i = 0; i < resources.Count; i++)
             {
                 var resource = resources[i];
@@ -91,7 +99,15 @@ namespace FreeMote.PsBuild
                 //var relativePath = spec == PsbSpec.krkr
                 //    ? $"{name}/{resource.Part}-{resource.Name}"
                 //    : $"{name}/{resource.Part}";
-                var relativePath = $"{resource.Part}{PsbResCollector.ResourceNameDelimiter}{resource.Name}";
+                string relativePath;
+                if (string.IsNullOrWhiteSpace(resource.Name) || string.IsNullOrWhiteSpace(resource.Part))
+                {
+                    relativePath = resource.Index.ToString();
+                }
+                else
+                {
+                    relativePath = $"{resource.Part}{PsbResCollector.ResourceNameDelimiter}{resource.Name}";
+                }
                 switch (imageOption)
                 {
                     case PsbImageOption.Extract:
@@ -104,6 +120,18 @@ namespace FreeMote.PsBuild
                                 {
                                     RL.UncompressToImageFile(resource.Data, Path.Combine(dirPath, relativePath),
                                         resource.Height, resource.Width, PsbImageFormat.Png, resource.PixelFormat);
+                                }
+                                else if (resource.Compress == PsbCompressType.Tlg)
+                                {
+                                    TlgImageConverter converter = new TlgImageConverter();
+                                    using (var ms = new MemoryStream(resource.Data))
+                                    {
+                                        BinaryReader br = new BinaryReader(ms);
+                                        converter.Read(br).Save(Path.Combine(dirPath, relativePath), ImageFormat.Png);
+                                    }
+                                    //WARN: tlg is kept and recorded in resource json for compile 
+                                    relativePath = Path.ChangeExtension(relativePath, ".tlg");
+                                    File.WriteAllBytes(Path.Combine(dirPath, relativePath), resource.Data);
                                 }
                                 else
                                 {
@@ -118,6 +146,18 @@ namespace FreeMote.PsBuild
                                     RL.UncompressToImageFile(resource.Data, Path.Combine(dirPath, relativePath),
                                         resource.Height, resource.Width, PsbImageFormat.Bmp, resource.PixelFormat);
                                 }
+                                else if (resource.Compress == PsbCompressType.Tlg)
+                                {
+                                    TlgImageConverter converter = new TlgImageConverter();
+                                    using (var ms = new MemoryStream(resource.Data))
+                                    {
+                                        BinaryReader br = new BinaryReader(ms);
+                                        converter.Read(br).Save(Path.Combine(dirPath, relativePath), ImageFormat.Bmp);
+                                    }
+                                    //WARN: tlg is kept and recorded in resource json for compile 
+                                    relativePath = Path.ChangeExtension(relativePath, ".tlg");
+                                    File.WriteAllBytes(Path.Combine(dirPath, relativePath), resource.Data);
+                                }
                                 else
                                 {
                                     RL.ConvertToImageFile(resource.Data, Path.Combine(dirPath, relativePath),
@@ -130,6 +170,11 @@ namespace FreeMote.PsBuild
                         if (resources[i].Compress == PsbCompressType.RL)
                         {
                             relativePath += ".rl";
+                            File.WriteAllBytes(Path.Combine(dirPath, relativePath), resource.Data);
+                        }
+                        else if (resource.Compress == PsbCompressType.Tlg)
+                        {
+                            relativePath += ".tlg";
                             File.WriteAllBytes(Path.Combine(dirPath, relativePath), resource.Data);
                         }
                         else
@@ -155,10 +200,18 @@ namespace FreeMote.PsBuild
                     default:
                         throw new ArgumentOutOfRangeException(nameof(imageOption), imageOption, null);
                 }
-                resPaths.Add($"{name}/{relativePath}");
+                resDictionary.Add(Path.GetFileNameWithoutExtension(relativePath), $"{name}/{relativePath}");
             }
             //MARK: We use `.resx.json` to distinguish from psbtools' `.res.json`
-            File.WriteAllText(inputPath + ".resx.json", JsonConvert.SerializeObject(resPaths, Formatting.Indented));
+            if (useResx)
+            {
+                resx.Resources = resDictionary;
+                File.WriteAllText(inputPath + ".resx.json", JsonConvert.SerializeObject(resx, Formatting.Indented));
+            }
+            else
+            {
+                File.WriteAllText(inputPath + ".res.json", JsonConvert.SerializeObject(resDictionary.Values.ToList(), Formatting.Indented));
+            }
         }
     }
 }
