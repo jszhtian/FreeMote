@@ -6,7 +6,7 @@ using System.IO;
 namespace FreeMote
 {
     /// <summary>
-    /// RL Compress for Image
+    /// Resource Loader
     /// </summary>
     public static class RL
     {
@@ -127,7 +127,7 @@ namespace FreeMote
 
             switch (pixelFormat)
             {
-                case PsbPixelFormat.RGBA4444:
+                case PsbPixelFormat.WinRGBA4444:
                     result = Rgba428(result, false);
                     break;
                 case PsbPixelFormat.CommonRGBA8:
@@ -180,7 +180,7 @@ namespace FreeMote
             }
             switch (colorFormat)
             {
-                case PsbPixelFormat.RGBA4444:
+                case PsbPixelFormat.WinRGBA4444:
                     data = Rgba428(data);
                     break;
                 case PsbPixelFormat.CommonRGBA8:

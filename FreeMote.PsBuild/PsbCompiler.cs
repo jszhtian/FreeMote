@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using FreeMote.Psb;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace FreeMote.PsBuild
 {
@@ -83,7 +82,7 @@ namespace FreeMote.PsBuild
                     }
                     if (resx.Platform != null && spec == null)
                     {
-                        psb.SwitchSpec(resx.Platform.Value, resx.Platform.Value.DefaultPixelFormat());
+                        spec = resx.Platform;
                     }
                     if (resx.CryptKey != null & cryptKey == null)
                     {
@@ -164,10 +163,7 @@ namespace FreeMote.PsBuild
                     {
                         psb.Header.Version = resx.PsbVersion.Value;
                     }
-                    if (resx.Platform != null)
-                    {
-                        psb.SwitchSpec(resx.Platform.Value, resx.Platform.Value.DefaultPixelFormat());
-                    }
+
                     if (resx.ExternalTextures)
                     {
                         Console.WriteLine("[INFO] External Texture mode ON, no resource will be compiled.");
@@ -175,6 +171,11 @@ namespace FreeMote.PsBuild
                     else
                     {
                         psb.Link(resx, baseDir);
+                    }
+
+                    if (resx.Platform != null)
+                    {
+                        psb.SwitchSpec(resx.Platform.Value, resx.Platform.Value.DefaultPixelFormat());
                     }
                 }
                 else
@@ -195,36 +196,42 @@ namespace FreeMote.PsBuild
         {
             PSB psb = new PSB(version)
             {
-                Objects = JsonConvert.DeserializeObject<PsbDictionary>(json, new PsbTypeConverter())
+                Objects = JsonConvert.DeserializeObject<PsbDictionary>(json, new PsbJsonConverter())
             };
             psb.Type = psb.InferType();
             return psb;
         }
 
-        internal static byte[] LoadImageBytes(string path, PsbCompressType compressType, PsbPixelFormat pixelFormat)
+        internal static byte[] LoadImageBytes(string path, ResourceMetadata metadata)
         {
             byte[] data;
-            switch (Path.GetExtension(path)?.ToLowerInvariant())
+            var ext = Path.GetExtension(path)?.ToLowerInvariant();
+            switch (ext)
             {
                 case ".png":
                 case ".bmp":
-                    switch (compressType)
+                case ".jpg":
+                case ".jpeg":
+                    switch (metadata.Compress)
                     {
                         case PsbCompressType.RL:
-                            data = RL.CompressImageFile(path, pixelFormat);
+                            data = RL.CompressImageFile(path, metadata.PixelFormat);
+                            break;
+                        case PsbCompressType.ByName when metadata.Name != null && metadata.Name.EndsWith(ext, true, null):
+                            data = File.ReadAllBytes(path);
                             break;
                         case PsbCompressType.Tlg:
                         //TODO: TLG encode
                         default:
-                            data = RL.GetPixelBytesFromImageFile(path, pixelFormat);
+                            data = RL.GetPixelBytesFromImageFile(path, metadata.PixelFormat);
                             break;
                     }
                     break;
                 case ".rl":
-                    data = compressType == PsbCompressType.RL ? File.ReadAllBytes(path) : RL.Uncompress(File.ReadAllBytes(path));
+                    data = metadata.Compress == PsbCompressType.RL ? File.ReadAllBytes(path) : RL.Uncompress(File.ReadAllBytes(path));
                     break;
                 case ".raw":
-                    data = compressType == PsbCompressType.RL ? RL.Compress(File.ReadAllBytes(path)) : File.ReadAllBytes(path);
+                    data = metadata.Compress == PsbCompressType.RL ? RL.Compress(File.ReadAllBytes(path)) : File.ReadAllBytes(path);
                     break;
                 case ".tlg": //TODO: tlg encode
                 default: //For `.bin`, you have to handle by yourself
@@ -246,17 +253,29 @@ namespace FreeMote.PsBuild
             foreach (var resPath in resPaths)
             {
                 var resName = Path.GetFileNameWithoutExtension(resPath);
-                var resMd = uint.TryParse(resName, out uint rid)
-                    ? resList.FirstOrDefault(r => r.Index == rid)
-                    : resList.FirstOrDefault(r =>
-                        resName == $"{r.Part}{PsbResCollector.ResourceNameDelimiter}{r.Name}");
+                //var resMd = uint.TryParse(resName, out uint rid)
+                //    ? resList.FirstOrDefault(r => r.Index == rid)
+                //    : resList.FirstOrDefault(r =>
+                //        resName == $"{r.Part}{PsbResCollector.ResourceNameDelimiter}{r.Name}");
+                
+                //Scan for Resource
+                var resMd = resList.FirstOrDefault(r =>
+                    resName == $"{r.Part}{PsbResCollector.ResourceNameDelimiter}{r.Name}");
+                if (resMd == null && uint.TryParse(resName, out uint rid))
+                {
+                    resMd = resList.FirstOrDefault(r => r.Index == rid);
+                }
+                if (resMd == null && psb.Type == PsbType.Pimg)
+                {
+                    resMd = resList.FirstOrDefault(r => resName == Path.GetFileNameWithoutExtension(r.Name));
+                }
                 if (resMd == null)
                 {
                     Console.WriteLine($"[WARN]{resPath} is not used.");
                     continue;
                 }
                 var fullPath = Path.Combine(baseDir ?? "", resPath.Replace('/', '\\'));
-                byte[] data = LoadImageBytes(fullPath, resMd.Compress/*psb.Platform.CompressType()*/, resMd.PixelFormat);
+                byte[] data = LoadImageBytes(fullPath, resMd);
                 resMd.Resource.Data = data;
             }
         }
@@ -272,10 +291,18 @@ namespace FreeMote.PsBuild
             var resList = psb.CollectResources();
             foreach (var resxResource in resx.Resources)
             {
-                var resMd = uint.TryParse(resxResource.Key, out uint rid)
-                    ? resList.FirstOrDefault(r => r.Index == rid)
-                    : resList.FirstOrDefault(r =>
-                        resxResource.Key == $"{r.Part}{PsbResCollector.ResourceNameDelimiter}{r.Name}");
+                //Scan for Resource
+                var resMd = resList.FirstOrDefault(r =>
+                    resxResource.Key == $"{r.Part}{PsbResCollector.ResourceNameDelimiter}{r.Name}");
+                if (resMd == null && psb.Type == PsbType.Pimg)
+                {
+                    resMd = resList.FirstOrDefault(r => resxResource.Key == Path.GetFileNameWithoutExtension(r.Name));
+                }
+                if (resMd == null && uint.TryParse(resxResource.Key, out uint rid))
+                {
+                    resMd = resList.FirstOrDefault(r => r.Index == rid);
+                }
+
                 if (resMd == null)
                 {
                     Console.WriteLine($"[WARN]{resxResource.Key} is not used.");
@@ -285,7 +312,7 @@ namespace FreeMote.PsBuild
                 var fullPath = Path.IsPathRooted(resxResource.Value)
                     ? resxResource.Value
                     : Path.Combine(baseDir ?? "", resxResource.Value.Replace('/', '\\'));
-                byte[] data = LoadImageBytes(fullPath, resMd.Compress/*psb.Platform.CompressType()*/, resMd.PixelFormat);
+                byte[] data = LoadImageBytes(fullPath, resMd);
                 resMd.Resource.Data = data;
             }
         }

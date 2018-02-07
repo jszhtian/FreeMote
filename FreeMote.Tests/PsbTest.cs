@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Drawing.Imaging;
 using System.IO;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using FreeMote.Psb;
@@ -96,6 +97,64 @@ namespace FreeMote.Tests
                 var p2 = new PsbNumber((PsbObjType)br.ReadByte(), br);
                 Assert.AreEqual(p1.IntValue, p2.IntValue);
             }
+        }
+
+        [TestMethod]
+        public void TestMdf()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+            var path = Path.Combine(resPath, "e-mote38_free.mmo");
+            //var path = Path.Combine(resPath, "e-mote38_free.mmo-repack.mmo");
+            var path2 = Path.Combine(resPath, "emote38-pure.mmo");
+
+            MdfFile.CompressPsbToMdfStream(File.OpenRead(path2)).CopyTo(File.Create(path + "-repack.mmo"));
+            
+            using (var mdfStream = File.OpenRead(path))
+            {
+                using (var psbStream = MdfFile.UncompressToPsbStream(mdfStream))
+                {
+                    //using (var pureStream = new MemoryStream((int)psbStream.Length))
+                    {
+                        //PsbFile.Encode(key, EncodeMode.Decrypt, EncodePosition.Auto, psbStream, pureStream);
+                        PSB psb = new PSB(psbStream);
+                        psb.SaveAsMdfFile(path + "-build.mmo");
+                    }
+                }
+            }
+        }
+
+        [TestMethod]
+        public void TestDrawKrkr()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+            var path = Path.Combine(resPath, "澄怜a_裸-pure.psb");
+            var psb = new PSB(path);
+            var painter = new PsbPainter(psb);
+            var bmp = painter.Draw(4096, 4096);
+            bmp.Save("RenderKrkr.png", ImageFormat.Png);
+        }
+
+        [TestMethod]
+        public void TestDrawWin()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+            //var path = Path.Combine(resPath, "miku_v4_win-pure.psb");
+            var path = Path.Combine(resPath, "vanilla-pure.psb");
+            var psb = new PSB(path);
+            var painter = new PsbPainter(psb);
+            var bmp = painter.Draw(4096, 4096);
+            bmp.Save("RenderWin.png", ImageFormat.Png);
+        }
+
+        [TestMethod]
+        public void TestDrawCommon()
+        {
+            var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
+            var path = Path.Combine(resPath, "akira_guide-pure.psb");
+            var psb = new PSB(path);
+            var painter = new PsbPainter(psb);
+            var bmp = painter.Draw(2048, 2048);
+            bmp.Save("RenderCommon.png", ImageFormat.Png);
         }
     }
 }

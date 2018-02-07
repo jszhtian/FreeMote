@@ -4,9 +4,9 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using FreeMote.Psb;
+using FreeMote.Psb.Textures;
 using FreeMote.PsBuild;
 using FreeMote.PsBuild.Converters;
-using FreeMote.PsBuild.Textures;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Newtonsoft.Json;
 
@@ -79,7 +79,7 @@ namespace FreeMote.Tests
         {
             var resPath = Path.Combine(Environment.CurrentDirectory, @"..\..\Res");
             //var path = Path.Combine(resPath, "D愛子a_春服-pure.psb.json");
-            var path = Path.Combine(resPath, "dx_e-mote3.0ショコラパジャマa-pure.psb.json");
+            var path = Path.Combine(resPath, "澄怜a_裸.psb-pure.psb.json");
             PsbCompiler.CompileToFile(path, path + ".psbuild.psb", null, 4, null, PsbSpec.win);
         }
 
@@ -225,10 +225,10 @@ namespace FreeMote.Tests
             {
                 FitHeuristic = BestFitHeuristic.MaxOneAxis,
             };
-            packer.Process(imgs, 4096, 1, false);
+            packer.Process(imgs, 4096, 5, false);
             if (Directory.Exists(savePath))
             {
-                Directory.Delete(savePath);
+                Directory.Delete(savePath, true);
             }
             Directory.CreateDirectory(savePath);
             packer.SaveAtlasses(Path.Combine(savePath, "tex.txt"));

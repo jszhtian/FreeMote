@@ -6,16 +6,14 @@ Managed Emote tool libs.
 ## Components
 ### FreeMote
 Basic functions. Decrypt or encrypt Emote PSB files.
-### FreeMote [(SDK)](https://github.com/Project-AZUSA/FreeMote-SDK)
-Special API libs for Emote engine, which takes _pure_ (unencrypted) PSB files as input.
+### FreeMote [SDK](https://github.com/Project-AZUSA/FreeMote-SDK)
+Special API libs for Emote engine, which take _pure_ (unencrypted) PSB files as input.
 ### FreeMote.Psb
-Parse PSB format.
+Parse PSB format. Draw the Emote model (statically) without Emote engine.
 ### FreeMote.PsBuild
 Compile and decompile PSB files. Convert PSB among different platforms.
 ### FreeMote.Purify (Unreleased)
 Infer and calculate the key used by Emote PSB file just from the PSB file (rather than get from engine).
-### FreeMote.Render (Unrealistic)
-Draw the Emote model (statically) without Emote engine.
 ### FreeMote.FreeLive (Unrealistic)
 Emote <-> Live2D Conversion
 
@@ -34,7 +32,7 @@ by **Ulysses** (wdwxy12345@gmail.com) from Project AZUSA
 
 FreeMote is licensed under **LGPL**.
 
-[Issue Report](https://github.com/UlyssesWu/FreeMote/issues) · [Pull Request](https://github.com/UlyssesWu/FreeMote/pulls) · [Wiki](https://github.com/Project-AZUSA/FreeMote/wiki)
+[Issue Report](https://github.com/UlyssesWu/FreeMote/issues) · [Pull Request](https://github.com/UlyssesWu/FreeMote/pulls) · [Wiki](https://github.com/UlyssesWu/FreeMote/wiki)
 
 [![Support Us](https://az743702.vo.msecnd.net/cdn/kofi2.png?v=0 "Buy Me a Coffee at ko-fi.com")](https://ko-fi.com/Ulysses)
 

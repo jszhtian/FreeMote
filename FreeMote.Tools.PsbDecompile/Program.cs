@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using FreeMote.PsBuild;
 
 namespace FreeMote.Tools.PsbDecompile
@@ -64,11 +61,12 @@ namespace FreeMote.Tools.PsbDecompile
                 }
                 else if (Directory.Exists(s))
                 {
-                    foreach (var file in Directory.EnumerateFiles(s, "*.psb"))
-                    {
-                        Decompile(file, _extractImage, _uncompressImage, _png);
-                    }
-                    foreach (var file in Directory.EnumerateFiles(s, "*.mmo"))
+                    foreach (var file in Directory.EnumerateFiles(s, "*.psb")
+                        .Union(Directory.EnumerateFiles(s, "*.mmo"))
+                        .Union(Directory.EnumerateFiles(s, "*.pimg"))
+                        .Union(Directory.EnumerateFiles(s, "*.scn"))
+                        .Union(Directory.EnumerateFiles(s, "*.dpak"))
+                    )
                     {
                         Decompile(file, _extractImage, _uncompressImage, _png);
                     }
@@ -83,7 +81,7 @@ namespace FreeMote.Tools.PsbDecompile
             Console.WriteLine("Usage: .exe [Mode] <PSB path>");
             Console.WriteLine(@"Mode:
 /raw : Keep resource in original format.
-/er : Similar to default mode but uncompress those compressed resources.
+/er : Similar to raw mode but uncompress those compressed resources.
 /eb : Convert images to BMP format.
 /ep : [Default] Convert images to PNG format.
 ");
@@ -104,7 +102,7 @@ namespace FreeMote.Tools.PsbDecompile
             }
             else if (uncompress)
             {
-                PsbDecompiler.DecompileToFile(path, PsbImageOption.Raw);
+                PsbDecompiler.DecompileToFile(path, PsbImageOption.Uncompress);
             }
             else
             {
@@ -122,7 +120,7 @@ namespace FreeMote.Tools.PsbDecompile
                 }
                 else if (uncompress)
                 {
-                    PsbDecompiler.DecompileToFile(path, PsbImageOption.Raw);
+                    PsbDecompiler.DecompileToFile(path, PsbImageOption.Uncompress);
                 }
                 else
                 {
